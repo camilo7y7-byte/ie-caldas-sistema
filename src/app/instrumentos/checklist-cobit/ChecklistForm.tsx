@@ -39,9 +39,10 @@ export function ChecklistForm() {
   }, []);
 
   function updateItem(itemId: string, patch: Partial<ItemState>) {
+    const current = items[itemId] || { status: "", evidenceObserved: "" };
     const next = {
       ...items,
-      [itemId]: { status: "", evidenceObserved: "", ...items[itemId], ...patch },
+      [itemId]: { ...current, ...patch },
     };
     setItems(next);
     setSaving(true);
