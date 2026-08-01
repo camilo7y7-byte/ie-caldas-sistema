@@ -65,8 +65,6 @@ model User {
   @@map("users")
 }
 
-// Definición editable de instrumentos (preguntas en JSON) para que el
-// admin pueda ajustar el contenido desde el panel sin tocar código.
 model Instrument {
   id          String        @id @default(cuid())
   key         InstrumentKey @unique
@@ -74,9 +72,7 @@ model Instrument {
   description String
   estimatedMinutes Int
   active      Boolean       @default(true)
-  // Estructura de preguntas / criterios / ítems en JSON
   schemaJson  Json
-  // Qué roles deben diligenciarlo
   assignedRoles Role[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -87,7 +83,7 @@ model Instrument {
 model DocumentAnalysisEntry {
   id                String   @id @default(cuid())
   userId            String
-  user              User     @relation(fields: [userId], references: [id])
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   documentAnalyzed  String
   documentType      String
   section           String
@@ -109,8 +105,7 @@ model DocumentAnalysisEntry {
 model InterviewResponse {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  // { questionId: string, answer: string }[]
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   answersJson Json
   completed   Boolean  @default(false)
   startedAt   DateTime @default(now())
@@ -123,8 +118,7 @@ model InterviewResponse {
 model SurveyResponse {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  // { questionId: string, value: LikertValue }[]
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   answersJson Json
   completed   Boolean  @default(false)
   startedAt   DateTime @default(now())
@@ -137,8 +131,7 @@ model SurveyResponse {
 model ChecklistResponse {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  // { itemId, status: ChecklistStatus, evidenceObserved: string }[]
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   itemsJson   Json
   completed   Boolean  @default(false)
   startedAt   DateTime @default(now())
@@ -153,8 +146,7 @@ model ChecklistResponse {
 model ExpertValidation {
   id             String   @id @default(cuid())
   userId         String
-  user           User     @relation(fields: [userId], references: [id])
-  // { criterionId, score: 1-5 }[]
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   criteriaJson   Json
   strengths      String   @db.Text
   weaknesses     String   @db.Text
@@ -175,7 +167,7 @@ model Evidence {
   fileUrl      String
   fileType     String
   uploadedById String
-  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
 
   documentEntryId String?
@@ -187,11 +179,10 @@ model Evidence {
   @@map("evidences")
 }
 
-// Auditoría inmutable: nunca se borra, solo se consulta.
 model AuditLog {
   id        String   @id @default(cuid())
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   action    String
   entity    String
   entityId  String?
