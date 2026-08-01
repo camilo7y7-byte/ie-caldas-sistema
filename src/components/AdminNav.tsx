@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Database, History, Download, FileSearch } from "lucide-react";
+import { LayoutDashboard, Users, Database, History, Download, FileSearch, BarChart3, Eye } from "lucide-react";
 
 const LINKS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users },
+  { href: "/admin/respuestas", label: "Respuestas", icon: Eye },
+  { href: "/admin/analisis", label: "Análisis", icon: BarChart3 },
   { href: "/instrumentos/matriz-documental", label: "Matriz Documental", icon: FileSearch },
   { href: "/admin/base-datos", label: "Base de datos", icon: Database },
   { href: "/admin/historial", label: "Historial", icon: History },
