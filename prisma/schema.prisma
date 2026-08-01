@@ -1,0 +1,213 @@
+// =============================================================
+// Esquema de base de datos - Sistema de recolección de datos
+// Investigación: Modelo de gobierno TI (COBIT 2019 + ITIL 4 + IoT)
+// I.E. Francisco José de Caldas
+// =============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  RECTOR
+  COORDINADOR
+  DOCENTE_TECNOLOGIA
+  ORIENTADOR
+  DOCENTE_APOYO
+}
+
+enum InstrumentKey {
+  MATRIZ_DOCUMENTAL
+  ENTREVISTA
+  ENCUESTA
+  CHECKLIST_COBIT
+  JUICIO_EXPERTOS
+}
+
+enum ChecklistStatus {
+  CUMPLE
+  CUMPLE_PARCIAL
+  NO_CUMPLE
+}
+
+enum LikertValue {
+  TOTALMENTE_DESACUERDO
+  DESACUERDO
+  NEUTRAL
+  DE_ACUERDO
+  TOTALMENTE_ACUERDO
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  fullName     String?
+  role         Role
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastLoginAt  DateTime?
+
+  documentEntries    DocumentAnalysisEntry[]
+  interviewResponses InterviewResponse[]
+  surveyResponses    SurveyResponse[]
+  checklistResponses ChecklistResponse[]
+  expertValidations  ExpertValidation[]
+  evidences          Evidence[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+// Definición editable de instrumentos (preguntas en JSON) para que el
+// admin pueda ajustar el contenido desde el panel sin tocar código.
+model Instrument {
+  id          String        @id @default(cuid())
+  key         InstrumentKey @unique
+  title       String
+  description String
+  estimatedMinutes Int
+  active      Boolean       @default(true)
+  // Estructura de preguntas / criterios / ítems en JSON
+  schemaJson  Json
+  // Qué roles deben diligenciarlo
+  assignedRoles Role[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("instruments")
+}
+
+model DocumentAnalysisEntry {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  documentAnalyzed  String
+  documentType      String
+  section           String
+  excerptFound      String   @db.Text
+  finding           String   @db.Text
+  interpretation    String   @db.Text
+  relationObjectives String  @db.Text
+  relationVariables  String  @db.Text
+  observations       String? @db.Text
+  completed         Boolean  @default(false)
+  startedAt         DateTime @default(now())
+  submittedAt       DateTime?
+
+  evidences Evidence[]
+
+  @@map("document_analysis_entries")
+}
+
+model InterviewResponse {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  // { questionId: string, answer: string }[]
+  answersJson Json
+  completed   Boolean  @default(false)
+  startedAt   DateTime @default(now())
+  submittedAt DateTime?
+
+  @@unique([userId])
+  @@map("interview_responses")
+}
+
+model SurveyResponse {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  // { questionId: string, value: LikertValue }[]
+  answersJson Json
+  completed   Boolean  @default(false)
+  startedAt   DateTime @default(now())
+  submittedAt DateTime?
+
+  @@unique([userId])
+  @@map("survey_responses")
+}
+
+model ChecklistResponse {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  // { itemId, status: ChecklistStatus, evidenceObserved: string }[]
+  itemsJson   Json
+  completed   Boolean  @default(false)
+  startedAt   DateTime @default(now())
+  submittedAt DateTime?
+
+  evidences Evidence[]
+
+  @@unique([userId])
+  @@map("checklist_responses")
+}
+
+model ExpertValidation {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  // { criterionId, score: 1-5 }[]
+  criteriaJson   Json
+  strengths      String   @db.Text
+  weaknesses     String   @db.Text
+  observations   String?  @db.Text
+  recommendations String? @db.Text
+  finalConcept   String   @db.Text
+  completed      Boolean  @default(false)
+  startedAt      DateTime @default(now())
+  submittedAt    DateTime?
+
+  @@unique([userId])
+  @@map("expert_validations")
+}
+
+model Evidence {
+  id           String   @id @default(cuid())
+  fileName     String
+  fileUrl      String
+  fileType     String
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  documentEntryId String?
+  documentEntry   DocumentAnalysisEntry? @relation(fields: [documentEntryId], references: [id])
+
+  checklistResponseId String?
+  checklistResponse   ChecklistResponse? @relation(fields: [checklistResponseId], references: [id])
+
+  @@map("evidences")
+}
+
+// Auditoría inmutable: nunca se borra, solo se consulta.
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  changesJson Json?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model Backup {
+  id        String   @id @default(cuid())
+  fileName  String
+  fileUrl   String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  @@map("backups")
+}
