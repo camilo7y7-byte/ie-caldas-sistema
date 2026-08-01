@@ -252,61 +252,87 @@ export async function GET(req: NextRequest) {
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const pageWidth = 595;
     const pageHeight = 842;
-    const margin = 40;
-    const maxCharsPerLine = 95;
+    const margin = 45;
+    const contentWidth = pageWidth - margin * 2;
+    const BRAND = rgb(0.145, 0.341, 0.941);
+    const BRAND_DARK = rgb(0.086, 0.149, 0.388);
+    const GRAY = rgb(0.35, 0.38, 0.42);
+    const LIGHT_BG = rgb(0.96, 0.97, 0.99);
+    const BORDER = rgb(0.88, 0.9, 0.93);
 
-    let page = pdfDoc.addPage([pageWidth, pageHeight]);
-    let y = pageHeight - 50;
+    const labelCharsPerLine = (indent: number, fontSize: number) =>
+      Math.floor((contentWidth - indent) / (fontSize * 0.56));
 
-    function newPage() {
-      page = pdfDoc.addPage([pageWidth, pageHeight]);
-      y = pageHeight - 50;
+    let pageNum = 0;
+    let page: any;
+    let y = 0;
+
+    function drawFooter() {
+      page.drawText(`Página ${pageNum}`, { x: pageWidth - margin - 45, y: 25, size: 8, font, color: GRAY });
+      page.drawText("I.E. Francisco José de Caldas — Sistema de Recolección de Datos", {
+        x: margin,
+        y: 25,
+        size: 8,
+        font,
+        color: GRAY,
+      });
     }
 
-    page.drawText(title, { x: margin, y, size: 16, font: boldFont, color: rgb(0.1, 0.15, 0.4) });
-    y -= 20;
-    page.drawText(`Exportado: ${new Date().toLocaleString("es-CO")}`, {
-      x: margin,
-      y,
-      size: 9,
-      font,
-      color: rgb(0.4, 0.4, 0.4),
-    });
-    y -= 25;
+    function newPage(withHeader = false) {
+      if (page) drawFooter();
+      pageNum++;
+      page = pdfDoc.addPage([pageWidth, pageHeight]);
+      y = pageHeight - 55;
+      if (withHeader) {
+        page.drawRectangle({ x: 0, y: pageHeight - 90, width: pageWidth, height: 90, color: BRAND });
+        page.drawText(title, { x: margin, y: pageHeight - 45, size: 18, font: boldFont, color: rgb(1, 1, 1) });
+        page.drawText(`Exportado: ${new Date().toLocaleString("es-CO")}  ·  ${rows.length} registro(s)`, {
+          x: margin,
+          y: pageHeight - 65,
+          size: 9,
+          font,
+          color: rgb(0.9, 0.93, 1),
+        });
+        y = pageHeight - 115;
+      }
+    }
+
+    newPage(true);
 
     rows.forEach((row, rowIdx) => {
-      if (y < 100) newPage();
-      page.drawText(`Registro ${rowIdx + 1}`, { x: margin, y, size: 11, font: boldFont, color: rgb(0.15, 0.32, 0.94) });
-      y -= 16;
+      if (y < 140) newPage();
+
+      page.drawRectangle({ x: margin, y: y - 4, width: contentWidth, height: 20, color: LIGHT_BG });
+      page.drawText(`Registro ${rowIdx + 1}`, { x: margin + 8, y: y + 2, size: 10, font: boldFont, color: BRAND_DARK });
+      y -= 28;
 
       headers.forEach((h) => {
-        const value = String(row[h] ?? "");
-        const label = `${h}:`;
-        const lines = wrapText(value, maxCharsPerLine);
+        const value = String(row[h] ?? "") || "—";
+        const labelLines = wrapText(h, labelCharsPerLine(0, 9.5));
+        const valueLines = wrapText(value, labelCharsPerLine(10, 9));
 
-        if (y < 60) newPage();
-        page.drawText(label, { x: margin, y, size: 9, font: boldFont, color: rgb(0, 0, 0) });
-        y -= 13;
+        const blockHeight = labelLines.length * 12 + valueLines.length * 12 + 8;
+        if (y - blockHeight < 55) newPage();
 
-        lines.forEach((line) => {
-          if (y < 60) newPage();
-          page.drawText(line, { x: margin + 10, y, size: 9, font, color: rgb(0.15, 0.15, 0.15) });
-          y -= 13;
+        labelLines.forEach((line) => {
+          page.drawText(line, { x: margin, y, size: 9.5, font: boldFont, color: BRAND_DARK });
+          y -= 12;
         });
-        y -= 4;
+        valueLines.forEach((line) => {
+          page.drawText(line, { x: margin + 10, y, size: 9, font, color: rgb(0.2, 0.2, 0.2) });
+          y -= 12;
+        });
+        y -= 6;
       });
 
-      y -= 12;
-      if (y > 60) {
-        page.drawLine({
-          start: { x: margin, y },
-          end: { x: pageWidth - margin, y },
-          thickness: 0.5,
-          color: rgb(0.85, 0.85, 0.85),
-        });
-        y -= 15;
+      y -= 6;
+      if (y > 55) {
+        page.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y }, thickness: 0.75, color: BORDER });
+        y -= 18;
       }
     });
+
+    drawFooter();
 
     const bytes = await pdfDoc.save();
     return new NextResponse(Buffer.from(bytes), {
